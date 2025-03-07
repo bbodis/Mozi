@@ -2,7 +2,7 @@ from tkinter import *
 from tkinter import ttk
 
 root = Tk()
-root.title("Éc moi")
+root.title("Éc mozi")
 
 
 musor = Label(root, font=("Helvetica", 26), text="Mai műsoron: ")
