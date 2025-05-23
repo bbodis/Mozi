@@ -3,6 +3,7 @@ import subprocess
 from tkinter import *
 from tkinter import messagebox
 from datetime import datetime
+
 def init_db():
     conn = sqlite3.connect('cinema.db')
     cursor = conn.cursor()
@@ -45,6 +46,7 @@ def init_db():
         cursor.execute('INSERT OR IGNORE INTO movies (title, total_seats) VALUES (?, ?)', (title, seats))
     conn.commit()
     conn.close()
+
 def get_available_seats(movie_title):
     conn = sqlite3.connect('cinema.db')
     cursor = conn.cursor()
@@ -57,6 +59,7 @@ def get_available_seats(movie_title):
     
     conn.close()
     return total_seats - reserved_seats
+
 def get_reserved_seats(movie_title):
     conn = sqlite3.connect('cinema.db')
     cursor = conn.cursor()
@@ -69,6 +72,7 @@ def get_reserved_seats(movie_title):
     reserved_seats = cursor.fetchall()
     conn.close()
     return reserved_seats
+
 def make_reservation(movie_title, user_name, user_email, selected_seats):
     conn = sqlite3.connect('cinema.db')
     cursor = conn.cursor()
@@ -87,6 +91,37 @@ def make_reservation(movie_title, user_name, user_email, selected_seats):
         conn.commit()
         return True
     except sqlite3.IntegrityError:
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def get_user_reservations(email):
+    conn = sqlite3.connect('cinema.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT r.reservation_id, m.title, r.seat_row, r.seat_col, r.reservation_date 
+        FROM reservations r
+        JOIN movies m ON r.movie_id = m.movie_id
+        JOIN users u ON r.user_id = u.user_id
+        WHERE u.email = ?
+        ORDER BY r.reservation_date DESC
+    ''', (email,))
+    
+    reservations = cursor.fetchall()
+    conn.close()
+    return reservations
+
+def delete_reservation(reservation_id):
+    conn = sqlite3.connect('cinema.db')
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('DELETE FROM reservations WHERE reservation_id = ?', (reservation_id,))
+        conn.commit()
+        return True
+    except:
         conn.rollback()
         return False
     finally:
@@ -195,6 +230,91 @@ def confirm_booking(movie_title, name, email, selected_seats, window):
     else:
         messagebox.showerror("Hiba", "Valami hiba történt a foglalás során. Lehet, hogy valaki már lefoglalta a kiválasztott helyeket.")
 
+def show_my_reservations():
+    reservations_window = Toplevel(root)
+    reservations_window.title("Foglalásaim")
+    reservations_window.geometry("800x600")
+    reservations_window.config(bg="#333333")
+    
+    header_frame = Frame(reservations_window, bg="#333333")
+    header_frame.pack(fill=X, padx=20, pady=10)
+    
+    Label(header_frame, text="Foglalásaim", font=("Helvetica", 20, "bold"), fg="white", bg="#333333").pack(side=LEFT)
+    
+    email_frame = Frame(reservations_window, bg="#333333")
+    email_frame.pack(fill=X, padx=20, pady=10)
+    
+    email_label = Label(email_frame, text="Email cím:", font=("Helvetica", 14), fg="white", bg="#333333")
+    email_label.pack(side=LEFT)
+    
+    email_entry = Entry(email_frame, font=("Helvetica", 14), width=30, fg='white', bg="#555555")
+    email_entry.insert(0, 'Add meg az email címed')
+    email_entry.bind("<FocusIn>", lambda event: clear_placeholder(event, email_entry, 'Add meg az email címed'))
+    email_entry.bind("<FocusOut>", lambda event: restore_placeholder(event, email_entry, 'Add meg az email címed'))
+    email_entry.pack(side=LEFT, padx=10)
+    
+    search_button = Button(email_frame, text="Keresés", font=("Helvetica", 12), bg="blue", fg="white",
+                          command=lambda: display_reservations(email_entry.get(), reservations_window))
+    search_button.pack(side=LEFT)
+
+def display_reservations(email, window):
+    if not email or email == 'Add meg az email címed':
+        messagebox.showerror("Hiba", "Kérjük, add meg az email címed!")
+        return
+    
+    reservations = get_user_reservations(email)
+    
+    # Clear previous results if any
+    for widget in window.winfo_children():
+        if isinstance(widget, Frame) and widget.winfo_name() != "!frame" and widget.winfo_name() != "!frame2":
+            widget.destroy()
+    
+    if not reservations:
+        no_res_label = Label(window, text="Nincsenek foglalásaid ezzel az email címmel.", 
+                           font=("Helvetica", 14), fg="white", bg="#333333")
+        no_res_label.pack(pady=20)
+        return
+    
+    container = Frame(window, bg="#333333")
+    container.pack(fill=BOTH, expand=True, padx=20, pady=10)
+    
+    canvas = Canvas(container, bg="#333333", highlightthickness=0)
+    scrollbar = Scrollbar(container, orient="vertical", command=canvas.yview)
+    scrollable_frame = Frame(canvas, bg="#333333")
+    
+    scrollable_frame.bind(
+        "<Configure>",
+        lambda e: canvas.configure(
+            scrollregion=canvas.bbox("all")
+        )
+    )
+    
+    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+    
+    canvas.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+    
+    for i, (res_id, title, row, col, date) in enumerate(reservations):
+        res_frame = Frame(scrollable_frame, bg="#555555", padx=10, pady=10)
+        res_frame.grid(row=i, column=0, sticky="ew", padx=5, pady=5)
+        
+        Label(res_frame, text=f"Film: {title}", font=("Helvetica", 14), fg="white", bg="#555555").grid(row=0, column=0, sticky="w")
+        Label(res_frame, text=f"Hely: {row}. sor, {col}. szék", font=("Helvetica", 12), fg="white", bg="#555555").grid(row=1, column=0, sticky="w")
+        Label(res_frame, text=f"Dátum: {date}", font=("Helvetica", 12), fg="white", bg="#555555").grid(row=2, column=0, sticky="w")
+        
+        delete_btn = Button(res_frame, text="Törlés", font=("Helvetica", 12), bg="red", fg="white",
+                          command=lambda rid=res_id: delete_and_refresh(rid, email, window))
+        delete_btn.grid(row=0, column=1, rowspan=3, padx=10, sticky="ns")
+
+def delete_and_refresh(reservation_id, email, window):
+    if delete_reservation(reservation_id):
+        messagebox.showinfo("Siker", "Foglalás sikeresen törölve!")
+        display_reservations(email, window)
+        refresh_movie_list()
+    else:
+        messagebox.showerror("Hiba", "A foglalás törlése sikertelen!")
+
 def refresh_movie_list():
     for i, (title, _) in enumerate(movies):
         available_seats = get_available_seats(title)
@@ -243,14 +363,27 @@ def show_movie_description(movie_title):
     
     Button(desc_window, text="Bezárás", font=("Helvetica", 14), bg="red", fg="white", 
            command=desc_window.destroy).pack(pady=10)
+
+# Adatbázis inicializálása
 init_db()
 
+# Főablak létrehozása
 root = Tk()
 root.title("ÉC MOZI")
 root.config(bg="#333333")
 
-musor = Label(root, font=("Helvetica", 20, "bold"), text="Mai műsoron:", fg="white", bg="#333333")
-musor.grid(column=0, row=0, padx=20, pady=10, columnspan=3, sticky="w")
+# Fejléc
+header_frame = Frame(root, bg="#333333")
+header_frame.grid(column=0, row=0, columnspan=3, sticky="ew", padx=20, pady=10)
+
+musor = Label(header_frame, font=("Helvetica", 20, "bold"), text="Mai műsoron:", fg="white", bg="#333333")
+musor.pack(side=LEFT)
+
+my_reservations_btn = Button(header_frame, text="Foglalásaim", font=("Helvetica", 14), bg="blue", fg="white",
+                           command=show_my_reservations)
+my_reservations_btn.pack(side=RIGHT, padx=10)
+
+# Filmek listája
 movie_titles = ["SHREK 1.", "KEIL OLCSA a mozifilm", "Csuti baki válogatás", "READY PLAYER ONE"]
 movies = [(title, get_available_seats(title)) for title in movie_titles]
 seat_labels = []
