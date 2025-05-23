@@ -237,7 +237,7 @@ def confirm_booking(movie_title, name, email, selected_seats, ticket_type_var, w
         window.destroy()
         refresh_movie_list()
         
-        # Az adatok.py futtatása
+        
         try:
             subprocess.run(["python", "adatok.py"])
         except Exception as e:
@@ -279,7 +279,7 @@ def display_reservations(email, window):
     
     reservations = get_user_reservations(email)
     
-    # Clear previous results if any
+    
     for widget in window.winfo_children():
         if isinstance(widget, Frame) and widget.winfo_name() != "!frame" and widget.winfo_name() != "!frame2":
             widget.destroy()
@@ -380,15 +380,15 @@ def show_movie_description(movie_title):
     Button(desc_window, text="Bezárás", font=("Helvetica", 14), bg="red", fg="white", 
            command=desc_window.destroy).pack(pady=10)
 
-# Adatbázis inicializálása
+
 init_db()
 
-# Főablak létrehozása
+
 root = Tk()
 root.title("ÉC MOZI")
 root.config(bg="#333333")
 
-# Fejléc
+
 header_frame = Frame(root, bg="#333333")
 header_frame.grid(column=0, row=0, columnspan=3, sticky="ew", padx=20, pady=10)
 
@@ -399,7 +399,7 @@ my_reservations_btn = Button(header_frame, text="Foglalásaim", font=("Helvetica
                            command=show_my_reservations)
 my_reservations_btn.pack(side=RIGHT, padx=10)
 
-# Filmek listája
+
 movie_titles = ["SHREK 1.", "KEIL OLCSA a mozifilm", "Csuti baki válogatás", "READY PLAYER ONE"]
 movies = [(title, get_available_seats(title)) for title in movie_titles]
 seat_labels = []
