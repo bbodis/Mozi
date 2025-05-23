@@ -1,6 +1,7 @@
 import sqlite3
 import subprocess
 from tkinter import *
+import subprocess
 from tkinter import messagebox
 from datetime import datetime
 
@@ -74,7 +75,7 @@ def get_reserved_seats(movie_title):
     conn.close()
     return reserved_seats
 
-def make_reservation(movie_title, user_name, user_email, selected_seats):
+def make_reservation(movie_title, user_name, user_email, selected_seats, ticket_type):
     conn = sqlite3.connect('cinema.db')
     cursor = conn.cursor()
     
@@ -86,8 +87,8 @@ def make_reservation(movie_title, user_name, user_email, selected_seats):
         movie_id = cursor.fetchone()[0]
         for seat in selected_seats:
             row, col = map(int, seat.split(','))
-            cursor.execute('INSERT INTO reservations (user_id, movie_id, seat_row, seat_col) VALUES (?, ?, ?, ?)',
-                          (user_id, movie_id, row, col))
+            cursor.execute('INSERT INTO reservations (user_id, movie_id, seat_row, seat_col, ticket_type) VALUES (?, ?, ?, ?, ?)',
+                          (user_id, movie_id, row, col, ticket_type))
         
         conn.commit()
         return True
@@ -96,13 +97,14 @@ def make_reservation(movie_title, user_name, user_email, selected_seats):
         return False
     finally:
         conn.close()
-
+def futtat_masik_file():
+    subprocess.run(["python", "masik_script.py"])
 def get_user_reservations(email):
     conn = sqlite3.connect('cinema.db')
     cursor = conn.cursor()
     
     cursor.execute('''
-        SELECT r.reservation_id, m.title, r.seat_row, r.seat_col, r.reservation_date 
+        SELECT r.reservation_id, m.title, r.seat_row, r.seat_col, r.ticket_type, r.reservation_date 
         FROM reservations r
         JOIN movies m ON r.movie_id = m.movie_id
         JOIN users u ON r.user_id = u.user_id
@@ -182,7 +184,6 @@ def open_subwindow(movie_title):
                           command=lambda: open_booking_window(movie_title, selected_seats))
     booking_button.grid(row=rows+3, column=0, columnspan=11, pady=20)
     booking_button.grid_forget()
-
 def open_booking_window(movie_title, selected_seats):
     booking_window = Toplevel(root)
     booking_window.title("Foglalás")
@@ -228,8 +229,8 @@ def confirm_booking(movie_title, name, email, selected_seats, ticket_type_var, w
         messagebox.showerror("Hiba", "Kérjük, töltsd ki mindkét mezőt!")
         return
     
-    if make_reservation(movie_title, name, email, selected_seats):
-        messagebox.showinfo("Siker", f"Foglalás sikeresen leadva!\nNév: {name}\nEmail: {email}\nFilm: {movie_title}\nHelyek: {', '.join(selected_seats)}")
+    if make_reservation(movie_title, name, email, selected_seats, ticket_type_var):
+        messagebox.showinfo("Siker", f"Foglalás sikeresen leadva!\nNév: {name}\nEmail: {email}\nFilm: {movie_title}\nHelyek: {', '.join(selected_seats)}\nJegytípus: {ticket_type_var}")
         window.destroy()
         refresh_movie_list()
     else:
@@ -300,17 +301,18 @@ def display_reservations(email, window):
     canvas.pack(side="left", fill="both", expand=True)
     scrollbar.pack(side="right", fill="y")
     
-    for i, (res_id, title, row, col, date) in enumerate(reservations):
+    for i, (res_id, title, row, col, ticket_type, date) in enumerate(reservations):
         res_frame = Frame(scrollable_frame, bg="#555555", padx=10, pady=10)
         res_frame.grid(row=i, column=0, sticky="ew", padx=5, pady=5)
         
         Label(res_frame, text=f"Film: {title}", font=("Helvetica", 14), fg="white", bg="#555555").grid(row=0, column=0, sticky="w")
         Label(res_frame, text=f"Hely: {row}. sor, {col}. szék", font=("Helvetica", 12), fg="white", bg="#555555").grid(row=1, column=0, sticky="w")
-        Label(res_frame, text=f"Dátum: {date}", font=("Helvetica", 12), fg="white", bg="#555555").grid(row=2, column=0, sticky="w")
+        Label(res_frame, text=f"Jegytípus: {ticket_type}", font=("Helvetica", 12), fg="white", bg="#555555").grid(row=2, column=0, sticky="w")
+        Label(res_frame, text=f"Dátum: {date}", font=("Helvetica", 12), fg="white", bg="#555555").grid(row=3, column=0, sticky="w")
         
         delete_btn = Button(res_frame, text="Törlés", font=("Helvetica", 12), bg="red", fg="white",
                           command=lambda rid=res_id: delete_and_refresh(rid, email, window))
-        delete_btn.grid(row=0, column=1, rowspan=3, padx=10, sticky="ns")
+        delete_btn.grid(row=0, column=1, rowspan=4, padx=10, sticky="ns")
 
 def delete_and_refresh(reservation_id, email, window):
     if delete_reservation(reservation_id):
