@@ -24,18 +24,19 @@ def init_db():
     ''')
     
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS reservations (
-            reservation_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            movie_id INTEGER NOT NULL,
-            seat_row INTEGER NOT NULL,
-            seat_col INTEGER NOT NULL,
-            reservation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(user_id),
-            FOREIGN KEY (movie_id) REFERENCES movies(movie_id),
-            UNIQUE(movie_id, seat_row, seat_col)
-        )
-    ''')
+    CREATE TABLE IF NOT EXISTS reservations (
+        reservation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        movie_id INTEGER NOT NULL,
+        seat_row INTEGER NOT NULL,
+        seat_col INTEGER NOT NULL,
+        ticket_type TEXT NOT NULL,
+        reservation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(user_id),
+        FOREIGN KEY (movie_id) REFERENCES movies(movie_id),
+        UNIQUE(movie_id, seat_row, seat_col)
+    )
+''')
     movies = [
         ("SHREK 1.", 50),
         ("KEIL OLCSA a mozifilm", 50),
@@ -203,9 +204,13 @@ def open_booking_window(movie_title, selected_seats):
     seats_label = Label(frame, text=f"Kiválasztott helyek: {', '.join(selected_seats)}", 
                        font=("Helvetica", 12), fg="white", bg="#333333")
     seats_label.grid(row=3, column=0, columnspan=2, pady=10)
+    Label(frame, text="Jegytípus:", font=("Helvetica", 14), fg="white", bg="#333333").grid(row=4, column=0, pady=10, sticky="e")
+    ticket_type_var = StringVar(value="teljes árú jegy")
+    ticket_options = ["diák jegy", "teljes árú jegy", "gyerek jegy"]
+    OptionMenu(frame, ticket_type_var, *ticket_options).grid(row=4, column=1, pady=10, sticky="w")
     confirm_button = Button(frame, text="Foglalás megerősítése", font=("Helvetica", 16), bg="green", fg="white", 
-                           command=lambda: confirm_booking(movie_title, name_entry.get(), email_entry.get(), selected_seats, booking_window))
-    confirm_button.grid(row=4, column=0, columnspan=2, pady=20)
+                           command=lambda: confirm_booking(movie_title, name_entry.get(), email_entry.get(), selected_seats, ticket_type_var.get(), booking_window))
+    confirm_button.grid(row=5, column=0, columnspan=2, pady=20)
     confirm_button.grid_forget()
     def check_fields():
         if (name_entry.get() and email_entry.get() and 
@@ -218,7 +223,7 @@ def open_booking_window(movie_title, selected_seats):
     name_entry.bind("<KeyRelease>", lambda event: check_fields())
     email_entry.bind("<KeyRelease>", lambda event: check_fields())
 
-def confirm_booking(movie_title, name, email, selected_seats, window):
+def confirm_booking(movie_title, name, email, selected_seats, ticket_type_var, window):
     if not name or not email or name == 'Add meg a neved' or email == 'Add meg az email címed':
         messagebox.showerror("Hiba", "Kérjük, töltsd ki mindkét mezőt!")
         return
