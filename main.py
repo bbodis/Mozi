@@ -97,8 +97,10 @@ def make_reservation(movie_title, user_name, user_email, selected_seats, ticket_
         return False
     finally:
         conn.close()
+        
 def futtat_masik_file():
     subprocess.run(["python", "masik_script.py"])
+
 def get_user_reservations(email):
     conn = sqlite3.connect('cinema.db')
     cursor = conn.cursor()
@@ -184,6 +186,7 @@ def open_subwindow(movie_title):
                           command=lambda: open_booking_window(movie_title, selected_seats))
     booking_button.grid(row=rows+3, column=0, columnspan=11, pady=20)
     booking_button.grid_forget()
+
 def open_booking_window(movie_title, selected_seats):
     booking_window = Toplevel(root)
     booking_window.title("Foglalás")
@@ -233,6 +236,12 @@ def confirm_booking(movie_title, name, email, selected_seats, ticket_type_var, w
         messagebox.showinfo("Siker", f"Foglalás sikeresen leadva!\nNév: {name}\nEmail: {email}\nFilm: {movie_title}\nHelyek: {', '.join(selected_seats)}\nJegytípus: {ticket_type_var}")
         window.destroy()
         refresh_movie_list()
+        
+        # Az adatok.py futtatása
+        try:
+            subprocess.run(["python", "adatok.py"])
+        except Exception as e:
+            messagebox.showerror("Hiba", f"Az adatok.py futtatása sikertelen: {str(e)}")
     else:
         messagebox.showerror("Hiba", "Valami hiba történt a foglalás során. Lehet, hogy valaki már lefoglalta a kiválasztott helyeket.")
 
